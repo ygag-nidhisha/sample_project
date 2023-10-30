@@ -5,6 +5,7 @@ DEFAULTS = {
     "WEBHOOK_MODEL": "webhooks.models.Webhook",
     "WEBHOOK_EVENTS": [],
     "WEBHOOK_EVENT_MAPPING": {},
+    "WEBHOOK_SEND_TO_ALL_EVENTS": [],
 }
 
 

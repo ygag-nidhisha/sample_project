@@ -3,6 +3,7 @@ version: '3.8'
 services:
   web:
     build: .
+    image: sample_project
     # command: python manage.py runserver 0.0.0.0:8000
     command: bash -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     container_name: sample_project
@@ -27,6 +28,25 @@ services:
       HOST: ${DB_HOST}
     ports:
       - ${DB_PORT}:${DB_PORT}
+
+  redis:
+    restart: always
+    image: redis:latest
+    expose:
+        - 6379
+
+  celery-worker:
+    build: .
+    image: sample_project
+    command: bash -c "celery -A sample_project worker -l INFO"
+    container_name: sample_project_celery_worker
+    env_file: .env
+    volumes:
+      - .:/application
+    depends_on:
+      - redis
+      - db
+
 
 volumes:
   pgdata:

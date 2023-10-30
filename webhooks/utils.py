@@ -1,15 +1,11 @@
-import hmac, hashlib, json, requests
 from sys import modules
+from importlib import import_module
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError, ImproperlyConfigured
 from django.db.models.base import ModelBase
-from django.forms.models import model_to_dict
-from django.core.serializers.json import DjangoJSONEncoder
-
 
 from .models import Webhook
 from .settings import webhook_settings
-from importlib import import_module
 
 User = get_user_model()
 
@@ -60,65 +56,38 @@ def get_webhook_model():
     return model
 
 
-class WebhookHandler:
-    def get_webhook(self, event, user):
-        webhook_model = get_webhook_model()
-        webhook = webhook_model.objects.filter(
-            user=user, webhookevents__event=event
-        ).last()
-        return webhook
+def get_webhook(filter_params=[], filter_context={}, order_by="id", single_obj=False):
+    """
+    The function retrieves webhooks from a webhook model based on specified filter parameters and order.
 
-    def get_event(self, instance, method):
-        event_mapping = webhook_settings.WEBHOOK_EVENT_MAPPING
-        model_path = f"{instance.__class__.__module__}.{instance.__class__.__name__}"
-        event_name = None
-        for event, data in event_mapping.items():
-            if data.get("model_path") == model_path and data.get("method") == method:
-                event_name = event
-                break
-        return event_name
+    :param filter_params: The `filter_params` parameter is a list of filter conditions that you want to
+    apply to the query. Each filter condition is a tuple containing the field name, lookup type, and
+    value. For example, `filter_params=[('status', 'exact', 'active'), ('created_at', 'gte
+    :param filter_context: The `filter_context` parameter is a dictionary that contains the filter
+    conditions to be applied to the query. Each key-value pair in the dictionary represents a filter
+    condition, where the key is the field name and the value is the value to be matched
+    :param order_by: The "order_by" parameter is used to specify the field by which the results should
+    be ordered. By default, it is set to "id", which means the results will be ordered by the webhook's
+    ID in ascending order. However, you can pass any valid field name of the webhook model to, defaults
+    to id (optional)
+    :return: a queryset of webhook objects.
+    """
+    webhook_model = get_webhook_model()
+    webhook = webhook_model.objects.filter(*filter_params, **filter_context).order_by(
+        order_by
+    )
+    return webhook
 
-    def get_user(self):
-        return User.objects.get(id=1)
 
-    def send_model_webhook(self, instance: ModelBase, method: str):
-        event = self.get_event(instance, method)
-        self.trigger_webhook(
-            event=event, user=self.get_user(), data=model_to_dict(instance)
-        )
+def chunks(input_list, chunk_size):
+    """
+    The function "chunks" takes an input list and a chunk size, and yields chunks of the input list with
+    the specified size.
 
-    def get_headers(self, webhook, payload):
-        headers = {"content-type": "application/json"}
-        headers["X-Signature"] = self.header_signature(str(webhook.secret), payload)
-        print(headers)
-        return headers
-
-    @staticmethod
-    def header_signature(secret, payload):
-        signature = hmac.new(
-            secret.encode("utf-8"), payload.encode("utf-8"), digestmod=hashlib.sha256
-        ).hexdigest()
-        return signature
-
-    def trigger_webhook(self, event, user, data):
-        if event:
-            if event not in webhook_settings.WEBHOOK_EVENTS:
-                raise ImproperlyConfigured(f"{event} not available in WEBHOOK_EVENTS")
-            webhook = self.get_webhook(event, user)
-            payload = json.dumps({"event": event, "data": data}, cls=DjangoJSONEncoder)
-            if webhook:
-                webhook_response = requests.post(
-                    url=webhook.url,
-                    data=payload,
-                    timeout=5,
-                    headers=self.get_headers(webhook, payload),
-                )
-                if webhook_response.status_code // 100 == 2:
-                    print("Webhook success")
-                else:
-                    print("Some error occured")
-                    print(webhook_response.content)
-            else:
-                print(f"{event} not subscribed by this user")
-        else:
-            print("No event")
+    :param input_list: The input_list parameter is a list of elements that you want to divide into
+    chunks
+    :param chunk_size: The chunk_size parameter determines the size of each chunk or sub-list that will
+    be created from the input_list. It specifies how many elements should be included in each chunk
+    """
+    for i in range(0, len(input_list), chunk_size):
+        yield input_list[i : i + chunk_size]

@@ -1,4 +1,4 @@
-import json
+import json, logging
 
 from django.contrib.auth import get_user_model
 
@@ -10,10 +10,12 @@ from rest_framework.decorators import (
     permission_classes,
 )
 
-from .utils import WebhookHandler
+from .tasks import TriggerWebhook
 from .decorators import emit_webhook
 
 User = get_user_model()
+# get logger instance
+logger = logging.getLogger(__name__)
 
 
 class WebhookReceiver(views.APIView):
@@ -22,9 +24,10 @@ class WebhookReceiver(views.APIView):
 
     def post(self, request, *args, **kwargs):
         print("here===========")
+        print(request.data)
         secret = "ff203910-eef6-4f11-ad94-126ec7e1ee12"
         request_signature = request.headers.get("X-Signature")
-        signature = WebhookHandler.header_signature(secret, json.dumps(request.data))
+        signature = TriggerWebhook.header_signature(secret, json.dumps(request.data))
         if request_signature == signature:
             print(request.data)
         return Response({"message": "done"})
@@ -40,7 +43,9 @@ def test_webhook_decorator_view(request, *args, **kwargs):
 
 @emit_webhook
 def test_webhook_decorator(*args, **kwargs):
+    logger.info("test webhook function initiated")
     event = "test.hook"
-    user = User.objects.get(id=1)
+    # user = User.objects.get(id=1)
+    user = None
     data = {"test": "test_event_data"}
-    return event, user, data
+    return event, user, data, True

@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-k%+0$lqw!tiwu_a&ungf478g-(*%#8t*ue_@p^le6f)92w!g_u
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=list)
 
 
 # Application definition
@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "oauth2_provider",
     "rest_framework",
-    # "signal_webhooks",
     # custom apps
     "users",
     "webhooks",
@@ -149,14 +148,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
 }
 
-# SIGNAL_WEBHOOKS = {
-#     "HOOKS": {
-#         "django.contrib.auth.models.User": ...,
-#     },
-# }
-
 WEBHOOK_SETTINGS = {
-    "WEBHOOK_EVENTS": ["user.create", "user.update", "user.delete", "test.hook"],
+    "WEBHOOK_EVENTS": [
+        "user.create",
+        "user.update",
+        "user.delete",
+        "test.hook",
+        "webhook.create",
+        "webhook.update",
+        "webhook.delete",
+    ],
     "WEBHOOK_EVENT_MAPPING": {
         "user.create": {
             "model_path": "django.contrib.auth.models.User",
@@ -169,6 +170,55 @@ WEBHOOK_SETTINGS = {
         "user.delete": {
             "model_path": "django.contrib.auth.models.User",
             "method": "delete",
+        },
+        "webhook.create": {
+            "model_path": "webhooks.models.Webhook",
+            "method": "create",
+        },
+        "webhook.update": {
+            "model_path": "webhooks.models.Webhook",
+            "method": "update",
+        },
+        "webhook.delete": {
+            "model_path": "webhooks.models.Webhook",
+            "method": "delete",
+        },
+    },
+    "WEBHOOK_SEND_TO_ALL_EVENTS": ["user.create", "user.update"],
+}
+
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", cast=str)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", cast=str)
+CELERY_TIMEZONE = config("CELERY_TIMEZONE", cast=str)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }
